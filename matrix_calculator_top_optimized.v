@@ -14,7 +14,7 @@ module matrix_calculator_top_optimized (
     input wire btn_back,     // 物理按键
     input wire uart_rx,
     output wire uart_tx,
-    output wire [6:0] seg_display, // 注意：display_ctrl 内部驱动，这�? wire 即可
+    output wire [6:0] seg_display, // 注意：display_ctrl 内部驱动，这�??? wire 即可
     output wire [3:0] led_status,
     output wire [1:0] seg_select
 );
@@ -22,29 +22,44 @@ module matrix_calculator_top_optimized (
     // ========================================
     // 1. 按键消抖 (Debouncing) - 核心修复
     // ========================================
+    wire btn_confirm_active_high;
+    wire btn_back_active_high;
+    
+    assign btn_confirm_active_high = ~btn_confirm; // <--- 关键修复�??
+    assign btn_back_active_high    = ~btn_back;    // <--- 关键修复�??
+
     wire btn_confirm_db;
     wire btn_back_db;
     
-    // 只有�?测到消抖后的信号的上升沿 (posedge) 才视为一次触�?
+    // 只有�??测到消抖后的信号的上升沿 (posedge) 才视为一次触�??
     wire btn_confirm_pulse; 
     wire btn_back_pulse;
     reg btn_confirm_r, btn_back_r;
 
+    // [修改] 步骤 1: 传入取反后的信号 (_active_high)
     button_debounce db_confirm (
-        .clk(clk), .rst_n(rst_n), .btn_in(btn_confirm), .btn_out(btn_confirm_db)
+        .clk(clk), .rst_n(rst_n), 
+        .btn_in(btn_confirm_active_high), // <--- 注意这里改了变量�??
+        .btn_out(btn_confirm_db)
     );
     button_debounce db_back (
-        .clk(clk), .rst_n(rst_n), .btn_in(btn_back), .btn_out(btn_back_db)
+        .clk(clk), .rst_n(rst_n), 
+        .btn_in(btn_back_active_high),    // <--- 注意这里改了变量�??
+        .btn_out(btn_back_db)
     );
 
-    // 生成单脉冲信�? (Edge Detection)
-    always @(posedge clk) begin
-        btn_confirm_r <= btn_confirm_db;
-        btn_back_r    <= btn_back_db;
+    // [保持] 步骤 2: 边沿�??�?? (这部分你的代码已经是修复过的，不用动)
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            btn_confirm_r <= 1'b0;
+            btn_back_r    <= 1'b0;
+        end else begin
+            btn_confirm_r <= btn_confirm_db;
+            btn_back_r    <= btn_back_db;
+        end
     end
     assign btn_confirm_pulse = btn_confirm_db & ~btn_confirm_r;
     assign btn_back_pulse    = btn_back_db    & ~btn_back_r;
-
     // ========================================
     // Main State Machine
     // ========================================
@@ -198,7 +213,6 @@ assign query_slot_mux = display_mode_active ? query_slot_display : query_slot_co
         main_state_next = main_state;
         case (main_state)
             `MAIN_MENU: begin
-                // 在主菜单，按下确认键进入对应模式
                 if (btn_confirm_pulse) begin
                     case (dip_sw)
                         3'd1: main_state_next = `MODE_INPUT;
@@ -206,13 +220,13 @@ assign query_slot_mux = display_mode_active ? query_slot_display : query_slot_co
                         3'd3: main_state_next = `MODE_DISPLAY;
                         3'd4: main_state_next = `MODE_COMPUTE;
                         3'd5: main_state_next = `MODE_SETTING;
-                        default: main_state_next = `MAIN_MENU;
+                        // 建议：这里可以不做任何事，或者让错误LED闪烁�??下提示用户没拨开�??
+                        default: main_state_next = `MAIN_MENU; 
                     endcase
                 end
             end
             
-            default: begin
-                // 在任何子模式下，按下返回键回到主菜单
+            default: begin // 在任何子模式�??
                 if (btn_back_pulse) begin
                     main_state_next = `MAIN_MENU;
                 end
@@ -447,7 +461,7 @@ compute_mode compute_mode_inst (
         .mode_active(compute_mode_active),
         .config_max_dim(config_max_dim),
         
-        // 传入消抖后的脉冲信号，�?�不是原始按键！
+        // 传入消抖后的脉冲信号，�?�不是原始按键！
         .dip_sw(dip_sw),               
         .btn_confirm(btn_confirm_pulse), // fix: 使用脉冲信号
         .selected_op_type(op_type_from_compute), 
@@ -503,14 +517,15 @@ display_ctrl disp_ctrl_inst (
         .main_state(main_state),
         .sub_state(sub_state),
         
-        // 如果�? Compute 模式，传�? op_type，否则为 0
+        // 如果�??? Compute 模式，传�??? op_type，否则为 0
         .op_type(compute_mode_active ? op_type_from_compute : 4'd0),
         
         .error_code(error_code),
         .error_timer(error_timer[25:20]),
-        .seg_display(seg_display), // 直接连接�? Output Port
+        .seg_display(seg_display), // 直接连接�??? Output Port
         .led_status(led_status),
-        .seg_select(seg_select)    // 直接连接�? Output Port
+        .seg_select(seg_select)    // 直接连接�??? Output Port
     );
+
 
 endmodule
