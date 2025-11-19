@@ -25,7 +25,7 @@ module button_debounce(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             cnt <= 21'd0;
-            btn_out <= 1'b0;
+            btn_out <= 1'b1;
         end else begin
             if (btn_sync_1 == btn_out) begin
                 cnt <= 21'd0;

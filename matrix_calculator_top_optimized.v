@@ -14,7 +14,7 @@ module matrix_calculator_top_optimized (
     input wire btn_back,     // 物理按键
     input wire uart_rx,
     output wire uart_tx,
-    output wire [6:0] seg_display, // 注意：display_ctrl 内部驱动，这�? wire 即可
+    output wire [6:0] seg_display, // 注意：display_ctrl 内部驱动，这�? wire 即可
     output wire [3:0] led_status,
     output wire [1:0] seg_select
 );
@@ -25,7 +25,7 @@ module matrix_calculator_top_optimized (
     wire btn_confirm_db;
     wire btn_back_db;
     
-    // 只有�?测到消抖后的信号的上升沿 (posedge) 才视为一次触�?
+    // 只有�?测到消抖后的信号的上升沿 (posedge) 才视为一次触�?
     wire btn_confirm_pulse; 
     wire btn_back_pulse;
     reg btn_confirm_r, btn_back_r;
@@ -37,13 +37,18 @@ module matrix_calculator_top_optimized (
         .clk(clk), .rst_n(rst_n), .btn_in(btn_back), .btn_out(btn_back_db)
     );
 
-    // 生成单脉冲信�? (Edge Detection)
-    always @(posedge clk) begin
-        btn_confirm_r <= btn_confirm_db;
-        btn_back_r    <= btn_back_db;
+    // 生成单脉冲信�? (Edge Detection)
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            btn_confirm_r <= 1'b1;
+            btn_back_r    <= 1'b1;
+        end else begin
+            btn_confirm_r <= btn_confirm_db;
+            btn_back_r    <= btn_back_db;
+        end
     end
-    assign btn_confirm_pulse = btn_confirm_db & ~btn_confirm_r;
-    assign btn_back_pulse    = btn_back_db    & ~btn_back_r;
+    assign btn_confirm_pulse = ~btn_confirm_db & btn_confirm_r;
+    assign btn_back_pulse    = ~btn_back_db    & btn_back_r;
 
     // ========================================
     // Main State Machine
@@ -447,7 +452,7 @@ compute_mode compute_mode_inst (
         .mode_active(compute_mode_active),
         .config_max_dim(config_max_dim),
         
-        // 传入消抖后的脉冲信号，�?�不是原始按键！
+        // 传入消抖后的脉冲信号，�?�不是原始按键！
         .dip_sw(dip_sw),               
         .btn_confirm(btn_confirm_pulse), // fix: 使用脉冲信号
         .selected_op_type(op_type_from_compute), 
@@ -503,14 +508,33 @@ display_ctrl disp_ctrl_inst (
         .main_state(main_state),
         .sub_state(sub_state),
         
-        // 如果�? Compute 模式，传�? op_type，否则为 0
+        // 如果�? Compute 模式，传�? op_type，否则为 0
         .op_type(compute_mode_active ? op_type_from_compute : 4'd0),
         
         .error_code(error_code),
         .error_timer(error_timer[25:20]),
-        .seg_display(seg_display), // 直接连接�? Output Port
+        .seg_display(seg_display), // 直接连接�? Output Port
         .led_status(led_status),
-        .seg_select(seg_select)    // 直接连接�? Output Port
+        .seg_select(seg_select)    // 直接连接�? Output Port
     );
+
+reg [3:0] led_debug_r;
+
+always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        led_debug_r <= 4'b0000;
+    end else begin
+        // 🚨 关键：将单周期脉冲捕获到一个寄存器中
+        // 否则脉冲太快，LED 可能无法显示
+        if (btn_confirm_pulse) begin
+            led_debug_r[0] <= ~led_debug_r[0]; // 每次脉冲到达，翻转 LED[0] 状态
+        end
+        if (btn_back_pulse) begin
+            led_debug_r[1] <= ~led_debug_r[1]; // 每次脉冲到达，翻转 LED[1] 状态
+        end
+    end
+end
+
+assign led_status = led_debug_r;
 
 endmodule
