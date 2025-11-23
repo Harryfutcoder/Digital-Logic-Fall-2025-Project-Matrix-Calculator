@@ -1,5 +1,13 @@
 # Digital Logic 2025 Fall Project Architecture Report 
 
+**Author**: 
+
+        Yanqiao Chen, CSE, SUStech, Shenzhen
+
+        Yan Jiang, CSE, SUSTech, Shenzhen
+
+        Dongsheng Hou, CSE, SUSTech, Shenzhen
+
 ## The INPUT and OUTPUT
 
 The input port and output port is listed as follows: 
@@ -21,7 +29,7 @@ The input port and output port is listed as follows:
 - LED: 4 bits width, LD3 as MSB, LD0 as LSB, used for indicating working, error type and so on.
 - 7-Seg LED selection: 2 bits width, used for selecting 7-Seg LED
 
-## Architecture
+## Inner Architecture
 
 The Architecture of this project is purposed as follow: 
 
@@ -126,3 +134,20 @@ The top module includes
 |matrix package|NO | NO | Some Macros settings, like clock frequency|
 |LSFR Random number generator|clk, rst_n, max_value[3:0]|random_value[3:0]| For generating psuedorandom number, by using polynomial|
 
+## Previous Progress
+
+### Done
+
+- Done developing FSM for Modes
+- Done developing UART module
+- Done developing button debounce
+- Done BRAM developing
+- Done developing input, storage
+- Almost done developing query from BRAM
+
+### TODO
+
+- Develop the implementation of function of modes
+- Develop Convolution
+
+© 2024 Yanqiao Chen, Yan Jiang, Dongsheng Hou. This project is licensed under the [MIT License](LICENSE).
