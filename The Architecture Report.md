@@ -1,5 +1,10 @@
 # Digital Logic 2025 Fall Project Architecture Report 
 
+**Authors:**
+- Yanqiao Chen(12412115)
+- Yan Jiang(12410337)
+- Dongsheng Hou(12410421)
+
 ## The INPUT and OUTPUT
 
 The input port and output port is listed as follows: 
@@ -20,6 +25,9 @@ The input port and output port is listed as follows:
 - 7-Seg LED: 7 bits width, used for displaying information like mode, opertion type, error code, counting time...
 - LED: 4 bits width, LD3 as MSB, LD0 as LSB, used for indicating working, error type and so on.
 - 7-Seg LED selection: 2 bits width, used for selecting 7-Seg LED
+
+![描述文本](1.png)  
+
 
 ## Architecture
 
@@ -82,6 +90,8 @@ The Architecture of this project is purposed as follow:
     └─────────────┘      └──────────────┘
 ```
 
+![描述文本](2.png)  
+
 ### The Top Module
 
 The top module includes
@@ -126,3 +136,106 @@ The top module includes
 |matrix package|NO | NO | Some Macros settings, like clock frequency|
 |LSFR Random number generator|clk, rst_n, max_value[3:0]|random_value[3:0]| For generating psuedorandom number, by using polynomial|
 
+## The FSM
+
+Some main states of this project:
+
+- IDLE, MODE_INPUT, MODE_COMPUTE, MODE_GENERATE, MODE_SETTING, MODE_DISPLAY
+- Input Mode: IDLE, PARSE_M, PARSE_N, CHECK_DIM, WAIT_ALLOC, PARSE_DATA, FILL_ZEROS, COMMIT, DISPLAY_MATRIX, DONE, ERROR
+- Display Mode: IDLE, SHOW_COUNT, WAIT_SELECT, READ_DATA, CONVERT_DATA, SEND_DIGITS, DONE
+- Generate Mode: IDLE, WAIT_M, WAIT_N, ALLOC, GEN_DATA, COMMIT, DONE
+- Compute Mode: IDLE, SELECT_OP, SELECT_MATRIX, EXECUTE, SEND_RESULT, DONE
+
+**Top**
+```mermaid
+stateDiagram-v2
+    direction LR
+    
+    %% 初始状态
+    [*] --> IDLE_MENU : System Reset\n(rst_n)
+    
+    %% 主菜单状态（加大空间）
+    state "MENU\n空闲/选择" as IDLE_MENU
+    
+    %% 工作模式组
+    state "WORKING MODES" as ACTIVE {
+        direction TB
+        
+        state "INPUT" as S_INPUT
+        state "GENERATE" as S_GEN
+        state "DISPLAY" as S_DISP
+        state "COMPUTE" as S_COMP
+        state "SETTING" as S_SET
+    }
+    
+    %% 模式选择转移（简洁标签）
+    IDLE_MENU --> S_INPUT : SW=000 & btn_confirm_pulse=1
+    IDLE_MENU --> S_GEN   : SW=001 & btn_confirm_pulse=1
+    IDLE_MENU --> S_DISP  : SW=010 & btn_confirm_pulse=1
+    IDLE_MENU --> S_COMP  : SW=011 & btn_confirm_pulse=1
+    IDLE_MENU --> S_SET   : SW=100 & btn_confirm_pulse=1
+    
+    %% 强制返回（统一标签）
+    S_INPUT --> IDLE_MENU : btn_back=1
+    S_GEN   --> IDLE_MENU : btn_back=1
+    S_DISP  --> IDLE_MENU : btn_back=1
+    S_COMP  --> IDLE_MENU : btn_back=1
+    S_SET   --> IDLE_MENU : btn_back=1
+```
+**INPUT**
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> PARSE_M
+    PARSE_M --> PARSE_N : SPACE
+    PARSE_N --> CHECK_DIM :  SPACE
+    CHECK_DIM --> WAIT_ALLOC : Dim_valid=1
+    CHECK_DIM --> ERROR : Dim_valid=0
+    WAIT_ALLOC --> PARSE_DATA : alloc_commit=1
+    PARSE_DATA --> FILL_ZEROS : ENTER & filled=0
+    PARSE_DATA --> COMMIT : ENTER & filled=1
+    FILL_ZEROS --> COMMIT
+    COMMIT --> DISPLAY_MATRIX
+    DISPLAY_MATRIX --> DONE
+    DONE --> IDLE
+    ERROR --> [*]
+```
+**DISPLAY**
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> SHOW_COUNT
+    SHOW_COUNT --> WAIT_SELECT
+    WAIT_SELECT --> READ_DATA : mat_valid=1
+    WAIT_SELECT --> DONE : mat_valid=0
+    READ_DATA --> CONVERT_DATA
+    CONVERT_DATA --> SEND_DIGITS
+    SEND_DIGITS --> READ_DATA : read_busy=1
+    SEND_DIGITS --> DONE : send_done=1
+    DONE --> [*]
+```
+
+**GENERATE**
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> WAIT_M
+    WAIT_M --> WAIT_N
+    WAIT_N --> ALLOC
+    ALLOC --> GEN_DATA : alloc_commit=1
+    GEN_DATA --> COMMIT : generate_succ=1
+    COMMIT --> DONE
+    DONE --> [*]
+```
+
+**COMPUTE**
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> SELECT_OP
+    SELECT_OP --> SELECT_MATRIX : btn_confirm_pulse=1
+    SELECT_MATRIX --> EXECUTE
+    EXECUTE --> SEND_RESULT
+    SEND_RESULT --> DONE
+    DONE --> [*]
+```
